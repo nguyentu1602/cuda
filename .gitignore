@@ -1,0 +1,6 @@
+# ignore emacs buffer files
+*~
+\#*
+
+# ingnore bin files
+build
