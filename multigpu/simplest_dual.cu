@@ -21,17 +21,22 @@ main(int argc, char** argv)
     printf("Program terminating.\n");
     return 0;
   }
-  // allocate a unified memory block;
+  // allocate a unified memory block:
+  // it's quite cool that unified memory could be dereferenced from
+  // both CPU and GPU threads!
   int* array;
   int N = BLOCK_N * THREAD_N * 2;
   cudaMallocManaged(&array, N);
+
   // init the unified memory block:
+  // CPU thread accesses unified memory here
   for (i = 0; i < N; i++) {
     array[i] = 1;
   }
   printf("Done initialization for memory block. \n");
 
   // calculate the length for each gpu:
+  // GPU threads accesses unified memory here
   int N1 = N / 2;
   // make the second pointer:
   int* array_2 = array + N1;
@@ -39,10 +44,10 @@ main(int argc, char** argv)
   // make 2 streams:
   cudaStream_t streamA, streamB;
   cudaSetDevice(0);
-  cudaStreamCreate(&streamA);
+  cudaStreamCreate(&streamA); // streamA is tied to device #0
   kernel<<<BLOCK_N, THREAD_N, 0, streamA>>>(array);
-  cudaSetDevice(1);
-  cudaStreamCreate(&streamB);
+  cudaSetDevice(1); // switch GPU
+  cudaStreamCreate(&streamB); // streamB is tied to device #1
   kernel<<<BLOCK_N, THREAD_N, 0, streamB>>>(array_2);
   cudaStreamSynchronize(streamA);
   cudaStreamSynchronize(streamB);
