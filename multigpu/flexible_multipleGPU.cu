@@ -35,8 +35,9 @@ __global__ void kernel(int* input, int N) {
 int
 main(int argc, char** argv) {
   int GPU_N, i;
-  printf("Starting simpleMultiGPU\n");
+  printf("Starting flexible multiple GPUs: \n");
   cudaGetDeviceCount(&GPU_N);
+  printf("Input array size: %i\n", DATA_N);
   printf("CUDA device count: %i\n", GPU_N);
 
   // Solver config:
