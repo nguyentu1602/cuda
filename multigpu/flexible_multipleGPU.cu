@@ -64,7 +64,7 @@ main(int argc, char** argv) {
 
   // Take into account "odd" data sizes & distribute into each GPU
   for (i = 0; i < DATA_N % GPU_N; i++) {
-     plan[i].dataN++;
+    plan[i].dataN++;
   }
 
   // Start timing and compute on GPU(s)
@@ -79,7 +79,7 @@ main(int argc, char** argv) {
     plan[i].input = start_ptr;
     start_ptr += plan[i].dataN;
     kernel<<<GET_BLOCKS(DATA_N), CUDA_NUM_THREADS, 0, plan[i].stream>>>
-            (plan[i].input, plan[i].dataN);
+        (plan[i].input, plan[i].dataN);
   }
 
   // reduce: Sychronize Streams and then devices.
