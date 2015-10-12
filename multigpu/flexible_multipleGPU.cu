@@ -21,12 +21,14 @@ typedef struct {
   cudaStream_t stream;
 } TGPUplan;
 
-// GPU kernel
+// GPU kernel - just dummy expensive calculation
 __global__ void kernel(int* input, int N) {
   const int id = blockIdx.x * blockDim.x + threadIdx.x;
   const int jump_size = gridDim.x * blockDim.x;
   for (int pos = id; pos < N; pos += jump_size) {
-    input[pos] = input[pos] + input[pos]; // kinda unsafe addition :P
+    for(int i = 0; i < 1024; i++) {
+      input[pos] = 2 * 1.0;
+    }
   }
 }
 
@@ -44,7 +46,6 @@ main(int argc, char** argv) {
   // it's quite cool that unified memory could be dereferenced from
   // both CPU and GPU threads!
   int* array;
-
   cudaMallocManaged(&array, DATA_N * sizeof(int));
 
   // init the unified memory block:
@@ -61,32 +62,39 @@ main(int argc, char** argv) {
     plan[i].dataN = DATA_N / GPU_N;
   }
 
-  // Take into account "odd" data sizes, distribute those oddity into each GPU
+  // Take into account "odd" data sizes & distribute into each GPU
   for (i = 0; i < DATA_N % GPU_N; i++) {
      plan[i].dataN++;
   }
 
-  //Start timing and compute on GPU(s)
+  // Start timing and compute on GPU(s)
   printf("Computing with %d GPUs...\n", GPU_N);
   StartTimer();
 
-  // deploy: create streams for issuing GPU command asynchronously and allocate memory
+  // map: Create streams for issuing GPU command asynchronously and allocate memory
   for (i = 0; i < GPU_N; i++) {
     cudaSetDevice(i);
     cudaStreamCreate(&plan[i].stream);
     // set the start of the input array into each GPU:
     plan[i].input = start_ptr;
     start_ptr += plan[i].dataN;
-    kernel<<<GET_BLOCKS(DATA_N), CUDA_NUM_THREADS, 0, plan[i].stream>>>(plan[i].input, plan[i].dataN);
+    kernel<<<GET_BLOCKS(DATA_N), CUDA_NUM_THREADS, 0, plan[i].stream>>>
+            (plan[i].input, plan[i].dataN);
   }
 
+  // reduce: Sychronize Streams and then devices.
+  // Warning: sychronization must be done for both
+  // streams and then devices, in that order.
+  for (i = 0; i < GPU_N; i++) {
+    cudaStreamSynchronize(plan[i].stream);
+  }
   cudaDeviceSynchronize();
   printf("Done synchronizing all devices.\n");
   printf("GPUs processing time: %f (ms)\n\n", GetTimer());
 
+  // check result:
   printf("Start checking calculations. \n");
   StartTimer();
-  // check result:
   for (i = 0; i < DATA_N; i++) {
     if (array[i] != 2) {
       printf("%i\n", array[i]);
